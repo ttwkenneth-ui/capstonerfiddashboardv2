@@ -3,12 +3,15 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9
 import { getDatabase, ref, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 // ======= PUT YOUR FIREBASE WEB CONFIG HERE =======
+
 const firebaseConfig = {
-  apiKey: "YOUR_WEB_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID.asia-southeast1.firebasedatabase.app",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAT6VhvQggviNUxDhL8KQKcyCi_Q1S6gjU",
+  authDomain: "capstone3-bc2c3.firebaseapp.com",
+  databaseURL: "https://capstone3-bc2c3-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "capstone3-bc2c3",
+  storageBucket: "capstone3-bc2c3.firebasestorage.app",
+  messagingSenderId: "948536456584",
+  appId: "1:948536456584:web:2e47332cbd2729b2c1363d"
 };
 // ================================================
 
