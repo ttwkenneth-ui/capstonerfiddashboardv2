@@ -1,79 +1,112 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import { getDatabase, ref, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
+// ======= PUT YOUR FIREBASE WEB CONFIG HERE =======
 const firebaseConfig = {
-  apiKey: "AIzaSyAT6VhvQggviNUxDhL8KQKcyCi_Q1S6gjU",
-  authDomain: "capstone3-bc2c3.firebaseapp.com",
-  databaseURL: "https://capstone3-bc2c3-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "capstone3-bc2c3",
-  storageBucket: "capstone3-bc2c3.firebasestorage.app",
-  messagingSenderId: "948536456584",
-  appId: "1:948536456584:web:2e47332cbd2729b2c1363d"
+  apiKey: "YOUR_WEB_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID.asia-southeast1.firebasedatabase.app",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID"
 };
+// ================================================
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
 const statusEl = document.getElementById("status");
-const lastRefreshEl = document.getElementById("lastRefresh");
-const latestBody = document.getElementById("latestBody");
+const activeStateEl = document.getElementById("activeState");
+const lastEventTimeEl = document.getElementById("lastEventTime");
+const logBody = document.getElementById("logBody");
 const searchEl = document.getElementById("search");
+
+const ACTIVE_WINDOW_MS = 60 * 1000;
+
+let lastEventMs = 0;
+let eventsArr = []; // [{id, uidKey, name, status, inspector, inspectedAt}...]
 
 function fmtTime(ms) {
   if (!ms) return "-";
   return new Date(ms).toLocaleString();
 }
 
-let latestCache = {}; // uidKey -> record
+function tickActiveBox() {
+  const now = Date.now();
+  const age = now - (lastEventMs || 0);
 
-function renderLatest() {
+  if (!lastEventMs) {
+    activeStateEl.textContent = "—";
+    return;
+  }
+
+  if (age < ACTIVE_WINDOW_MS) {
+    const left = ACTIVE_WINDOW_MS - age;
+    const sec = Math.ceil(left / 1000);
+    const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+    const ss = String(sec % 60).padStart(2, "0");
+    activeStateEl.textContent = `ACTIVE (${mm}:${ss})`;
+  } else {
+    activeStateEl.textContent = "EXPIRED";
+  }
+}
+
+function renderLog() {
   const q = (searchEl.value || "").trim().toLowerCase();
-  latestBody.innerHTML = "";
+  logBody.innerHTML = "";
 
-  const rows = Object.entries(latestCache)
-    .map(([uidKey, rec]) => ({ uidKey, ...rec }))
-    .sort((a, b) => (b.inspectedAt || 0) - (a.inspectedAt || 0));
+  // newest first
+  const rows = [...eventsArr].sort((a,b) => (b.inspectedAt||0) - (a.inspectedAt||0));
 
   for (const r of rows) {
-    const uidKey = r.uidKey || "";
-    const name = r.name || "";
-    const inspector = r.inspector || "";
-    const status = r.status || "";
-    const inspectedAt = r.inspectedAt || 0;
-
-    const hay = (uidKey + " " + name).toLowerCase();
+    const hay = `${r.uidKey||""} ${r.name||""} ${r.inspector||""} ${r.status||""}`.toLowerCase();
     if (q && !hay.includes(q)) continue;
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${uidKey}</td>
-      <td>${name}</td>
-      <td>${status}</td>
-      <td>${inspector}</td>
-      <td>${fmtTime(inspectedAt)}</td>
+      <td>${fmtTime(r.inspectedAt)}</td>
+      <td>${r.uidKey || ""}</td>
+      <td>${r.name || ""}</td>
+      <td>${r.status || ""}</td>
+      <td>${r.inspector || ""}</td>
     `;
-    latestBody.appendChild(tr);
+    logBody.appendChild(tr);
   }
-
-  lastRefreshEl.textContent = new Date().toLocaleString();
 }
 
-searchEl.addEventListener("input", renderLatest);
+searchEl.addEventListener("input", renderLog);
 
 async function start() {
   try {
     statusEl.textContent = "Signing in (anonymous)...";
     await signInAnonymously(auth);
 
-    statusEl.textContent = "Connected. Listening to latestInspection...";
-    const latestRef = ref(db, "latestInspection");
+    statusEl.textContent = "Connected. Listening to inspectionEvents...";
+    const evRef = query(ref(db, "inspectionEvents"), limitToLast(200)); // adjust 200 as needed
 
-    onValue(latestRef, (snap) => {
-      latestCache = snap.val() || {};
-      renderLatest();
+    onValue(evRef, (snap) => {
+      const obj = snap.val() || {};
+
+      // Convert {pushId: record} -> array
+      eventsArr = Object.entries(obj).map(([id, rec]) => ({
+        id,
+        uidKey: rec?.uidKey,
+        name: rec?.name,
+        status: rec?.status,
+        inspector: rec?.inspector,
+        inspectedAt: rec?.inspectedAt || 0
+      }));
+
+      // compute latest event time for ACTIVE timer
+      lastEventMs = eventsArr.reduce((mx, e) => Math.max(mx, e.inspectedAt || 0), 0);
+      lastEventTimeEl.textContent = fmtTime(lastEventMs);
+
+      renderLog();
     });
+
+    // update ACTIVE countdown smoothly
+    setInterval(tickActiveBox, 250);
   } catch (e) {
     console.error(e);
     statusEl.textContent = "Error: " + (e?.message || e);
