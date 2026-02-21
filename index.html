@@ -13,6 +13,7 @@
     th { background:#fafafa; position: sticky; top:0; }
     .muted { color:#666; font-size: 12px; }
     input { padding:8px; width: 320px; }
+    .big { font-size: 18px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -23,29 +24,41 @@
       <div><b>Status</b></div>
       <div id="status" class="muted">Loading...</div>
     </div>
+
     <div class="card">
-      <div><b>Last update</b></div>
-      <div id="lastRefresh" class="muted">-</div>
+      <div><b>1-minute window</b></div>
+      <div id="activeState" class="big">—</div>
+      <div id="activeHint" class="muted">Resets on every scan</div>
+    </div>
+
+    <div class="card">
+      <div><b>Last event time</b></div>
+      <div id="lastEventTime" class="muted">-</div>
     </div>
   </div>
 
   <div class="row">
-    <input id="search" placeholder="Search UID key / name..." />
+    <input id="search" placeholder="Search name / uidKey / inspector..." />
   </div>
 
-  <h3>Latest Inspections</h3>
+  <h3>Live Inspection Log (new row every scan)</h3>
   <table>
     <thead>
       <tr>
+        <th>Time</th>
         <th>UID Key</th>
         <th>Name</th>
         <th>Status</th>
         <th>Inspector</th>
-        <th>Inspected At</th>
       </tr>
     </thead>
-    <tbody id="latestBody"></tbody>
+    <tbody id="logBody"></tbody>
   </table>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
+
 
   <script type="module" src="./app.js"></script>
 </body>
